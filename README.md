@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # 🚬 Cigarette Inventory System
 
 A full-stack inventory management app for tracking cigarette product sales and stock, built with **HTML/CSS/JS + Node.js + Express + MongoDB Atlas**, deployable to **Vercel** for free.
@@ -176,3 +177,6 @@ Or update directly in MongoDB Atlas via the web interface.
 | Database | MongoDB Atlas (Mongoose ODM) |
 | Hosting | Vercel (free tier) |
 | Fonts | Barlow Condensed, Share Tech Mono (Google Fonts) |
+=======
+# Yosi
+>>>>>>> 65e5f1ff27e03b1bc77d5dea03a699257753132a
