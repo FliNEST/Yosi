@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cigarette Inventory System</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow+Condensed:wght@400;600;700;800&family=Barlow:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- NOTIFICATION -->
+  <div id="notification" class="notification hidden"></div>
+
+  <!-- HEADER -->
+  <header class="header">
+    <div class="header-left">
+      <div class="logo-icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="2" y="8" width="20" height="8" rx="2"/>
+          <line x1="18" y1="8" x2="18" y2="16"/>
+          <line x1="6" y1="12" x2="18" y2="12"/>
+        </svg>
+      </div>
+      <span class="logo-text">CIGARETTE INVENTORY</span>
+    </div>
+    <div class="header-right">
+      <input type="date" id="datePicker" class="date-picker" />
+      <button id="btnSave" class="btn btn-primary">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+        SAVE
+      </button>
+      <button id="btnReset" class="btn btn-danger">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg>
+        RESET
+      </button>
+      <button id="btnDownload" class="btn btn-success">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        EXPORT CSV
+      </button>
+    </div>
+  </header>
+
+  <!-- MAIN CONTENT -->
+  <main class="main">
+
+    <!-- INVENTORY TABLE -->
+    <section class="card">
+      <div class="card-header">
+        <h2 class="section-title">INVENTORY ENTRY</h2>
+        <span class="record-badge" id="recordDate">—</span>
+      </div>
+
+      <div class="table-wrapper">
+        <table class="inv-table" id="inventoryTable">
+          <thead>
+            <tr>
+              <th>PRODUCT</th>
+              <th>PRICE</th>
+              <th class="align-center">STOCK</th>
+              <th class="align-center">SOLD</th>
+              <th class="align-center">SUBTOTAL</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody">
+            <!-- Rows injected by JS -->
+          </tbody>
+          <tfoot>
+            <tr class="totals-row">
+              <td colspan="2"></td>
+              <td class="align-center">
+                <div class="total-label">STOCK VALUE</div>
+                <div class="total-val" id="totalStockValue">₱0.00</div>
+              </td>
+              <td></td>
+              <td class="align-center">
+                <div class="total-label">TOTAL SALES</div>
+                <div class="total-val accent" id="totalSales">₱0.00</div>
+              </td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </section>
+
+    <!-- HISTORY TABLE -->
+    <section class="card">
+      <div class="card-header">
+        <h2 class="section-title">SUBMISSION HISTORY</h2>
+        <button id="btnRefreshHistory" class="btn btn-ghost" onclick="loadHistory()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg>
+          REFRESH
+        </button>
+      </div>
+      <div class="table-wrapper">
+        <table class="inv-table">
+          <thead>
+            <tr>
+              <th>DATE</th>
+              <th class="align-center">TOTAL SOLD PRICE</th>
+              <th class="align-center">STOCK TOTAL PRICE</th>
+              <th class="align-center">ACTIONS</th>
+            </tr>
+          </thead>
+          <tbody id="historyBody">
+            <tr><td colspan="4" class="empty-row">No history yet.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- DETAIL MODAL -->
+  <div id="modal" class="modal-overlay hidden">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 id="modalTitle">RECORD DETAIL</h3>
+        <button class="modal-close" onclick="closeModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="table-wrapper">
+          <table class="inv-table">
+            <thead>
+              <tr>
+                <th>PRODUCT</th>
+                <th class="align-center">PRICE</th>
+                <th class="align-center">SOLD</th>
+                <th class="align-center">SUBTOTAL</th>
+              </tr>
+            </thead>
+            <tbody id="modalBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
