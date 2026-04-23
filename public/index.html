@@ -11,7 +11,6 @@
 </head>
 <body>
 
-  <!-- NOTIFICATION -->
   <div id="notification" class="notification hidden"></div>
 
   <!-- HEADER -->
@@ -43,41 +42,101 @@
     </div>
   </header>
 
-  <!-- MAIN CONTENT -->
   <main class="main">
 
-    <!-- INVENTORY TABLE -->
+    <!-- ── DASHBOARD STATS ── -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-icon">📅</div>
+        <div class="stat-info">
+          <div class="stat-label">THIS WEEK SALES</div>
+          <div class="stat-value accent" id="statWeekSales">₱0</div>
+          <div class="stat-sub" id="statWeekDays">0 days recorded</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">📆</div>
+        <div class="stat-info">
+          <div class="stat-label">THIS MONTH SALES</div>
+          <div class="stat-value" id="statMonthSales">₱0</div>
+          <div class="stat-sub" id="statMonthDays">0 days recorded</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">📊</div>
+        <div class="stat-info">
+          <div class="stat-label">DAILY AVERAGE</div>
+          <div class="stat-value" id="statDailyAvg">₱0</div>
+          <div class="stat-sub" id="statTotalDays">all time</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">🏆</div>
+        <div class="stat-info">
+          <div class="stat-label">BEST SELLER</div>
+          <div class="stat-value best-seller" id="statBestSeller">—</div>
+          <div class="stat-sub" id="statBestSellerQty">this week</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── RESTOCK COUNTDOWN ── -->
+    <div class="restock-banner" id="restockBanner">
+      <div class="restock-left">
+        <div class="restock-icon">🚚</div>
+        <div>
+          <div class="restock-title">NEXT RESTOCK DATE</div>
+          <div class="restock-date" id="restockDateDisplay">Not set</div>
+        </div>
+      </div>
+      <div class="restock-center">
+        <div class="countdown-box" id="countdownBox">
+          <span class="countdown-num" id="countdownDays">—</span>
+          <span class="countdown-label">DAYS LEFT</span>
+        </div>
+      </div>
+      <div class="restock-right">
+        <input type="date" id="restockDatePicker" class="date-picker" placeholder="Set restock date" />
+        <button class="btn btn-primary btn-sm" onclick="setRestockDate()">SET DATE</button>
+        <button class="btn btn-ghost btn-sm" onclick="clearRestockDate()">CLEAR</button>
+      </div>
+    </div>
+
+    <!-- ── LOW STOCK ALERT ── -->
+    <div class="alert-bar hidden" id="lowStockAlert">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      <span id="lowStockMsg">Low stock warning</span>
+    </div>
+
+    <!-- ── INVENTORY ENTRY ── -->
     <section class="card">
       <div class="card-header">
         <h2 class="section-title">INVENTORY ENTRY</h2>
         <span class="record-badge" id="recordDate">—</span>
       </div>
-
       <div class="table-wrapper">
         <table class="inv-table" id="inventoryTable">
           <thead>
             <tr>
               <th>PRODUCT</th>
               <th>PRICE</th>
-              <th class="align-center">STOCK</th>
+              <th class="align-center">STOCK <small style="font-weight:400;opacity:.6">(click to restock)</small></th>
               <th class="align-center">SOLD</th>
               <th class="align-center">SUBTOTAL</th>
             </tr>
           </thead>
-          <tbody id="tableBody">
-            <!-- Rows injected by JS -->
-          </tbody>
+          <tbody id="tableBody"></tbody>
           <tfoot>
             <tr class="totals-row">
               <td colspan="2"></td>
               <td class="align-center">
                 <div class="total-label">STOCK VALUE</div>
-                <div class="total-val" id="totalStockValue">₱0.00</div>
+                <div class="total-val" id="totalStockValue">₱0</div>
               </td>
               <td></td>
               <td class="align-center">
                 <div class="total-label">TOTAL SALES</div>
-                <div class="total-val accent" id="totalSales">₱0.00</div>
+                <div class="total-val accent" id="totalSales">₱0</div>
               </td>
             </tr>
           </tfoot>
@@ -85,15 +144,41 @@
       </div>
     </section>
 
-    <!-- HISTORY TABLE -->
+    <!-- ── HISTORY ── -->
     <section class="card">
       <div class="card-header">
         <h2 class="section-title">SUBMISSION HISTORY</h2>
-        <button id="btnRefreshHistory" class="btn btn-ghost" onclick="loadHistory()">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg>
-          REFRESH
-        </button>
+        <div class="history-controls">
+          <!-- Filter buttons -->
+          <div class="filter-group">
+            <button class="filter-btn active" data-filter="all" onclick="filterHistory('all', this)">ALL</button>
+            <button class="filter-btn" data-filter="today" onclick="filterHistory('today', this)">TODAY</button>
+            <button class="filter-btn" data-filter="week" onclick="filterHistory('week', this)">THIS WEEK</button>
+            <button class="filter-btn" data-filter="lastweek" onclick="filterHistory('lastweek', this)">LAST WEEK</button>
+            <button class="filter-btn" data-filter="month" onclick="filterHistory('month', this)">THIS MONTH</button>
+            <button class="filter-btn" data-filter="lastmonth" onclick="filterHistory('lastmonth', this)">LAST MONTH</button>
+          </div>
+          <!-- Custom range -->
+          <div class="custom-range">
+            <input type="date" id="filterFrom" class="date-picker" placeholder="From" />
+            <span style="color:var(--text-dim);font-size:.8rem">→</span>
+            <input type="date" id="filterTo" class="date-picker" placeholder="To" />
+            <button class="btn btn-ghost btn-sm" onclick="filterHistory('custom', null)">GO</button>
+          </div>
+          <button class="btn btn-ghost btn-sm" onclick="loadHistory()">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg>
+            REFRESH
+          </button>
+        </div>
       </div>
+
+      <!-- Summary bar -->
+      <div class="history-summary" id="historySummary" style="display:none">
+        <span>Showing <strong id="summaryCount">0</strong> records</span>
+        <span>Total Sales: <strong class="accent" id="summaryTotal">₱0</strong></span>
+        <span>Avg/day: <strong id="summaryAvg">₱0</strong></span>
+      </div>
+
       <div class="table-wrapper">
         <table class="inv-table">
           <thead>
