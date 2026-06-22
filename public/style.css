@@ -277,3 +277,249 @@ body { background: var(--bg-deep); color: var(--text-primary); font-family: var(
   .filter-btn { padding: 3px 8px; font-size: .68rem; }
   .history-controls { gap: 8px; }
 }
+
+/* ══════════════════════════════════════
+   RESTOCK BUDGET PLANNER STYLES
+══════════════════════════════════════ */
+
+/* Fund Summary Bar */
+.fund-summary {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  padding: 20px;
+  background: var(--bg-deep);
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.fund-item {
+  flex: 1;
+  min-width: 140px;
+  text-align: center;
+  padding: 12px 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+.fund-label {
+  font-family: var(--font-cond);
+  font-size: .68rem;
+  font-weight: 700;
+  letter-spacing: .12em;
+  color: var(--text-dim);
+  margin-bottom: 6px;
+}
+.fund-value {
+  font-family: var(--font-mono);
+  font-size: 1.1rem;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+.fund-value.accent  { color: var(--accent); }
+.fund-value.success { color: var(--success); }
+.fund-value.danger  { color: var(--danger); }
+.fund-sub {
+  font-family: var(--font-cond);
+  font-size: .68rem;
+  color: var(--text-dim);
+}
+.fund-divider {
+  font-family: var(--font-mono);
+  font-size: 1.2rem;
+  color: var(--text-dim);
+  padding: 0 6px;
+  flex-shrink: 0;
+}
+
+/* Balance Result Bar */
+.balance-bar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+  transition: background .3s;
+}
+.balance-bar.positive { background: rgba(74,255,224,.06); border-left: 4px solid var(--success); }
+.balance-bar.negative { background: rgba(255,74,106,.06); border-left: 4px solid var(--danger); }
+.balance-bar.neutral  { background: var(--bg-deep); border-left: 4px solid var(--border); }
+.balance-label {
+  font-family: var(--font-cond);
+  font-size: .75rem;
+  font-weight: 700;
+  letter-spacing: .12em;
+  color: var(--text-dim);
+  min-width: 70px;
+}
+.balance-amount {
+  font-family: var(--font-mono);
+  font-size: 1.4rem;
+  font-weight: bold;
+  color: var(--text-primary);
+  min-width: 140px;
+}
+.balance-amount.positive { color: var(--success); }
+.balance-amount.negative { color: var(--danger); }
+.balance-status {
+  font-family: var(--font-cond);
+  font-size: .82rem;
+  color: var(--text-muted);
+  letter-spacing: .04em;
+}
+
+/* Order input in planner */
+.order-input {
+  width: 90px;
+  padding: 6px 10px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: .85rem;
+  text-align: center;
+  outline: none;
+  transition: border-color var(--transition);
+  -moz-appearance: textfield;
+}
+.order-input::-webkit-outer-spin-button,
+.order-input::-webkit-inner-spin-button { -webkit-appearance: none; }
+.order-input:focus { border-color: var(--info); background: var(--bg-input-focus); }
+
+.order-cost {
+  font-family: var(--font-mono);
+  font-size: .88rem;
+  color: var(--info);
+  text-align: center;
+}
+
+.total-val.danger { color: var(--danger); }
+
+@media (max-width: 700px) {
+  .fund-summary { flex-direction: column; }
+  .fund-divider { transform: rotate(90deg); }
+  .balance-bar { flex-wrap: wrap; }
+}
+
+/* ══════════════════════════════
+   CASH FUND MANAGER
+══════════════════════════════ */
+.fund-card { border-color: rgba(200,255,74,.15); }
+
+.fund-overview {
+  display: flex; align-items: center; gap: 0;
+  padding: 20px 24px; flex-wrap: wrap; gap: 8px;
+}
+
+.fund-stat {
+  flex: 1; min-width: 160px;
+  background: var(--bg-deep); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 16px 18px;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.fund-stat-label {
+  font-family: var(--font-cond); font-size: .7rem; font-weight: 700;
+  letter-spacing: .12em; color: var(--text-dim);
+}
+.fund-stat-value {
+  font-family: var(--font-mono); font-size: 1.3rem; color: var(--text-primary);
+}
+.fund-stat-value.green  { color: var(--success); }
+.fund-stat-value.yellow { color: var(--warning); }
+.fund-stat-sub {
+  font-family: var(--font-cond); font-size: .75rem; color: var(--text-dim);
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+}
+
+.fund-arrow {
+  font-size: 1.4rem; color: var(--border-light);
+  padding: 0 4px; flex-shrink: 0;
+}
+
+.fund-status-box {
+  background: var(--bg-deep); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 16px 20px;
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  min-width: 120px;
+}
+.fund-status-icon { font-size: 2rem; line-height: 1; }
+.fund-status-text {
+  font-family: var(--font-cond); font-size: .78rem; font-weight: 700;
+  letter-spacing: .06em; text-align: center; color: var(--text-muted);
+}
+.fund-status-text.ok    { color: var(--success); }
+.fund-status-text.warn  { color: var(--warning); }
+.fund-status-text.bad   { color: var(--danger); }
+
+/* Progress */
+.fund-progress-wrap {
+  padding: 0 24px 16px; display: flex; flex-direction: column; gap: 8px;
+}
+.fund-progress-bar {
+  height: 28px; background: var(--bg-deep); border-radius: 20px;
+  overflow: hidden; position: relative; border: 1px solid var(--border);
+}
+.fund-progress-fill {
+  height: 100%; border-radius: 20px;
+  background: linear-gradient(90deg, var(--success), var(--accent));
+  transition: width .5s ease;
+}
+.fund-progress-fill.warn { background: linear-gradient(90deg, var(--warning), #ffda4a); }
+.fund-progress-fill.bad  { background: linear-gradient(90deg, var(--danger), #ff8a4a); }
+.fund-progress-label {
+  position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+  font-family: var(--font-mono); font-size: .78rem; color: #1a1520; font-weight: bold;
+  mix-blend-mode: difference; color: white;
+}
+.fund-progress-info {
+  display: flex; justify-content: space-between;
+  font-family: var(--font-cond); font-size: .78rem;
+}
+
+/* Actions */
+.fund-actions {
+  display: flex; gap: 16px; padding: 16px 24px;
+  border-top: 1px solid var(--border); flex-wrap: wrap;
+}
+.fund-action-group {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+}
+.fund-action-label {
+  font-family: var(--font-cond); font-size: .75rem; font-weight: 700;
+  letter-spacing: .06em; color: var(--text-muted); white-space: nowrap;
+}
+
+/* Fund history */
+.fund-history { border-top: 1px solid var(--border); }
+.fund-history.hidden { display: none; }
+.fund-history-header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 12px 24px; font-family: var(--font-cond); font-size: .78rem;
+  font-weight: 700; letter-spacing: .1em; color: var(--text-dim);
+  background: var(--bg-deep);
+}
+.fund-tx-list { max-height: 240px; overflow-y: auto; }
+.fund-tx-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 24px; border-bottom: 1px solid rgba(58,50,80,.4);
+  transition: background var(--transition);
+}
+.fund-tx-item:hover { background: rgba(255,255,255,.02); }
+.fund-tx-item:last-child { border-bottom: none; }
+.fund-tx-dot {
+  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+}
+.fund-tx-dot.deposit  { background: var(--success); }
+.fund-tx-dot.withdraw { background: var(--danger); }
+.fund-tx-date { font-family: var(--font-mono); font-size: .75rem; color: var(--text-dim); min-width: 90px; }
+.fund-tx-note { font-family: var(--font-cond); font-size: .85rem; color: var(--text-muted); flex: 1; }
+.fund-tx-amount { font-family: var(--font-mono); font-size: .88rem; font-weight: bold; }
+.fund-tx-amount.deposit  { color: var(--success); }
+.fund-tx-amount.withdraw { color: var(--danger); }
+.fund-tx-del {
+  background: none; border: none; color: var(--text-dim);
+  cursor: pointer; font-size: .8rem; padding: 2px 6px;
+  border-radius: 4px; transition: color var(--transition);
+}
+.fund-tx-del:hover { color: var(--danger); }

@@ -44,7 +44,7 @@
 
   <main class="main">
 
-    <!-- ── DASHBOARD STATS ── -->
+    <!-- ── STATS ── -->
     <div class="stats-grid">
       <div class="stat-card">
         <div class="stat-icon">📅</div>
@@ -81,11 +81,11 @@
     </div>
 
     <!-- ── RESTOCK COUNTDOWN ── -->
-    <div class="restock-banner" id="restockBanner">
+    <div class="restock-banner">
       <div class="restock-left">
         <div class="restock-icon">🚚</div>
         <div>
-          <div class="restock-title">NEXT RESTOCK DATE</div>
+          <div class="restock-title">NEXT RESTOCK (AHENTE)</div>
           <div class="restock-date" id="restockDateDisplay">Not set</div>
         </div>
       </div>
@@ -96,7 +96,7 @@
         </div>
       </div>
       <div class="restock-right">
-        <input type="date" id="restockDatePicker" class="date-picker" placeholder="Set restock date" />
+        <input type="date" id="restockDatePicker" class="date-picker" />
         <button class="btn btn-primary btn-sm" onclick="setRestockDate()">SET DATE</button>
         <button class="btn btn-ghost btn-sm" onclick="clearRestockDate()">CLEAR</button>
       </div>
@@ -108,6 +108,98 @@
       <span id="lowStockMsg">Low stock warning</span>
     </div>
 
+    <!-- ══════════════════════════════════════
+         💰 CASH FUND MANAGER
+    ══════════════════════════════════════ -->
+    <section class="card fund-card">
+      <div class="card-header">
+        <h2 class="section-title">💰 CASH FUND — PAMBILI NG STOCKS</h2>
+        <div style="display:flex;gap:8px;align-items:center">
+          <button class="btn btn-ghost btn-sm" onclick="toggleFundHistory()">HISTORY</button>
+          <button class="btn btn-danger btn-sm" onclick="confirmResetFund()">RESET FUND</button>
+        </div>
+      </div>
+
+      <!-- Main fund overview -->
+      <div class="fund-overview">
+
+        <!-- Balance -->
+        <div class="fund-stat">
+          <div class="fund-stat-label">CURRENT FUND</div>
+          <div class="fund-stat-value green" id="fundBalance">₱0</div>
+          <div class="fund-stat-sub">Accumulated from sales</div>
+        </div>
+
+        <!-- Arrow -->
+        <div class="fund-arrow">→</div>
+
+        <!-- Target -->
+        <div class="fund-stat">
+          <div class="fund-stat-label">RESTOCK BUDGET</div>
+          <div class="fund-stat-value yellow" id="fundTarget">₱0</div>
+          <div class="fund-stat-sub">
+            <input type="number" id="fundTargetInput" class="qty-input" style="width:110px" placeholder="Set amount" min="0" />
+            <button class="btn btn-ghost btn-sm" onclick="setFundTarget()" style="margin-left:4px">SET</button>
+          </div>
+        </div>
+
+        <!-- Arrow -->
+        <div class="fund-arrow">→</div>
+
+        <!-- Projection -->
+        <div class="fund-stat">
+          <div class="fund-stat-label">PROJECTED BY RESTOCK</div>
+          <div class="fund-stat-value" id="fundProjected">₱0</div>
+          <div class="fund-stat-sub" id="fundProjectedSub">Set restock date first</div>
+        </div>
+
+        <!-- Status -->
+        <div class="fund-status-box" id="fundStatusBox">
+          <div class="fund-status-icon" id="fundStatusIcon">⏳</div>
+          <div class="fund-status-text" id="fundStatusText">Set budget &amp; date</div>
+        </div>
+
+      </div>
+
+      <!-- Progress bar -->
+      <div class="fund-progress-wrap">
+        <div class="fund-progress-bar">
+          <div class="fund-progress-fill" id="fundProgressFill" style="width:0%"></div>
+          <span class="fund-progress-label" id="fundProgressPct">0%</span>
+        </div>
+        <div class="fund-progress-info">
+          <span id="fundNeedMore" style="color:var(--text-dim)">Set a restock budget to track progress</span>
+          <span id="fundDaysInfo" style="color:var(--text-dim)"></span>
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div class="fund-actions">
+        <div class="fund-action-group">
+          <span class="fund-action-label">➕ ADD TO FUND</span>
+          <input type="number" id="depositAmount" class="qty-input" style="width:120px" placeholder="Amount" min="0" />
+          <input type="text"   id="depositNote"   class="qty-input" style="width:160px;text-align:left;padding-left:10px" placeholder="Note (optional)" />
+          <button class="btn btn-primary btn-sm" onclick="manualDeposit()">ADD</button>
+        </div>
+        <div class="fund-action-group">
+          <span class="fund-action-label" style="color:var(--danger)">➖ BUY STOCK (DEDUCT)</span>
+          <input type="number" id="withdrawAmount" class="qty-input" style="width:120px" placeholder="Amount" min="0" />
+          <input type="text"   id="withdrawNote"   class="qty-input" style="width:160px;text-align:left;padding-left:10px" placeholder="What did you buy?" />
+          <button class="btn btn-danger btn-sm" onclick="withdraw()">DEDUCT</button>
+        </div>
+      </div>
+
+      <!-- Fund transaction history (collapsible) -->
+      <div id="fundHistoryWrap" class="fund-history hidden">
+        <div class="fund-history-header">
+          <span>TRANSACTION HISTORY</span>
+          <span id="fundTxCount" style="color:var(--text-dim);font-size:.78rem"></span>
+        </div>
+        <div class="fund-tx-list" id="fundTxList"></div>
+      </div>
+
+    </section>
+
     <!-- ── INVENTORY ENTRY ── -->
     <section class="card">
       <div class="card-header">
@@ -115,7 +207,7 @@
         <span class="record-badge" id="recordDate">—</span>
       </div>
       <div class="table-wrapper">
-        <table class="inv-table" id="inventoryTable">
+        <table class="inv-table">
           <thead>
             <tr>
               <th>PRODUCT</th>
@@ -149,21 +241,19 @@
       <div class="card-header">
         <h2 class="section-title">SUBMISSION HISTORY</h2>
         <div class="history-controls">
-          <!-- Filter buttons -->
           <div class="filter-group">
-            <button class="filter-btn active" data-filter="all" onclick="filterHistory('all', this)">ALL</button>
-            <button class="filter-btn" data-filter="today" onclick="filterHistory('today', this)">TODAY</button>
-            <button class="filter-btn" data-filter="week" onclick="filterHistory('week', this)">THIS WEEK</button>
-            <button class="filter-btn" data-filter="lastweek" onclick="filterHistory('lastweek', this)">LAST WEEK</button>
-            <button class="filter-btn" data-filter="month" onclick="filterHistory('month', this)">THIS MONTH</button>
-            <button class="filter-btn" data-filter="lastmonth" onclick="filterHistory('lastmonth', this)">LAST MONTH</button>
+            <button class="filter-btn active" onclick="filterHistory('all',this)">ALL</button>
+            <button class="filter-btn" onclick="filterHistory('today',this)">TODAY</button>
+            <button class="filter-btn" onclick="filterHistory('week',this)">THIS WEEK</button>
+            <button class="filter-btn" onclick="filterHistory('lastweek',this)">LAST WEEK</button>
+            <button class="filter-btn" onclick="filterHistory('month',this)">THIS MONTH</button>
+            <button class="filter-btn" onclick="filterHistory('lastmonth',this)">LAST MONTH</button>
           </div>
-          <!-- Custom range -->
           <div class="custom-range">
-            <input type="date" id="filterFrom" class="date-picker" placeholder="From" />
+            <input type="date" id="filterFrom" class="date-picker" />
             <span style="color:var(--text-dim);font-size:.8rem">→</span>
-            <input type="date" id="filterTo" class="date-picker" placeholder="To" />
-            <button class="btn btn-ghost btn-sm" onclick="filterHistory('custom', null)">GO</button>
+            <input type="date" id="filterTo" class="date-picker" />
+            <button class="btn btn-ghost btn-sm" onclick="filterHistory('custom',null)">GO</button>
           </div>
           <button class="btn btn-ghost btn-sm" onclick="loadHistory()">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg>
@@ -171,14 +261,11 @@
           </button>
         </div>
       </div>
-
-      <!-- Summary bar -->
       <div class="history-summary" id="historySummary" style="display:none">
         <span>Showing <strong id="summaryCount">0</strong> records</span>
         <span>Total Sales: <strong class="accent" id="summaryTotal">₱0</strong></span>
         <span>Avg/day: <strong id="summaryAvg">₱0</strong></span>
       </div>
-
       <div class="table-wrapper">
         <table class="inv-table">
           <thead>
