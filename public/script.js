@@ -12,8 +12,7 @@ let currentFilter = 'all';
 document.addEventListener('DOMContentLoaded', async () => {
   setTodayDate();
   updateRecordDateBadge();
-  loadRestockDate();
-  initFund();
+  loadPeriodFromStorage();
   await loadProducts();
   await loadHistory();
   bindHeaderActions();
@@ -22,7 +21,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 // ─── DATE HELPERS ───────────────────────────
 function setTodayDate() {
   const dp = document.getElementById('datePicker');
-  dp.value = new Date().toISOString().split('T')[0];
+  dp.value = toIsoDate(new Date());
   dp.addEventListener('change', updateRecordDateBadge);
 }
 function updateRecordDateBadge() {
@@ -30,17 +29,19 @@ function updateRecordDateBadge() {
   document.getElementById('recordDate').textContent = dp.value ? formatDate(dp.value) : '—';
 }
 function formatDate(iso) {
-  const [y, m, d] = iso.split('-');
+  const [y,m,d] = iso.split('-');
   const months = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
   return `${d} ${months[parseInt(m,10)-1]} ${y}`;
 }
 function toIsoDate(d) { return d.toISOString().split('T')[0]; }
+function daysBetween(isoA, isoB) {
+  const a = new Date(isoA+'T00:00:00'), b = new Date(isoB+'T00:00:00');
+  return Math.ceil((b - a) / (1000*60*60*24));
+}
 
 // ─── API ────────────────────────────────────
 async function apiFetch(url, options = {}) {
-  const res = await fetch(API_BASE + url, {
-    headers: { 'Content-Type': 'application/json' }, ...options,
-  });
+  const res  = await fetch(API_BASE + url, { headers: {'Content-Type':'application/json'}, ...options });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || 'Request failed');
   return data;
@@ -50,56 +51,46 @@ async function apiFetch(url, options = {}) {
 async function loadProducts() {
   try {
     products = await apiFetch('/products');
-    renderInventoryTable();
-    checkLowStock();
-  } catch (err) {
-    notify('Failed to load products: ' + err.message, 'error');
-    products = getDefaultProducts();
-    renderInventoryTable();
+  } catch {
+    products = defaultProducts();
   }
+  renderInventoryTable();
+  checkLowStock();
 }
-function getDefaultProducts() {
+function defaultProducts() {
   return [
-    { _id:'1',  name:'MARLBORO RED',   price:176, stock:0 },
-    { _id:'2',  name:'MARLBORO LIGHT', price:176, stock:0 },
-    { _id:'3',  name:'MARLBORO BLUE',  price:176, stock:0 },
-    { _id:'4',  name:'MARLBORO BLACK', price:176, stock:0 },
-    { _id:'5',  name:'CRAFTED BLUE',   price:164, stock:0 },
-    { _id:'6',  name:'FORTUNE WHITE',  price:164, stock:0 },
-    { _id:'7',  name:'FORTUNE LIGHT',  price:164, stock:0 },
-    { _id:'8',  name:'CHESTER RED',    price:145, stock:0 },
-    { _id:'9',  name:'CHESTER WHITE',  price:145, stock:0 },
-    { _id:'10', name:'CHESTER REMIX',  price:145, stock:0 },
+    {_id:'1',name:'MARLBORO RED',price:176,stock:0},{_id:'2',name:'MARLBORO LIGHT',price:176,stock:0},
+    {_id:'3',name:'MARLBORO BLUE',price:176,stock:0},{_id:'4',name:'MARLBORO BLACK',price:176,stock:0},
+    {_id:'5',name:'CRAFTED BLUE',price:164,stock:0},{_id:'6',name:'FORTUNE WHITE',price:164,stock:0},
+    {_id:'7',name:'FORTUNE LIGHT',price:164,stock:0},{_id:'8',name:'CHESTER RED',price:145,stock:0},
+    {_id:'9',name:'CHESTER WHITE',price:145,stock:0},{_id:'10',name:'CHESTER REMIX',price:145,stock:0},
   ];
 }
-
 function checkLowStock() {
-  const low = products.filter(p => p.stock > 0 && p.stock <= 5).map(p => p.name);
-  const out = products.filter(p => p.stock === 0).map(p => p.name);
+  const low = products.filter(p=>p.stock>0&&p.stock<=5).map(p=>p.name);
+  const out = products.filter(p=>p.stock===0).map(p=>p.name);
   const bar = document.getElementById('lowStockAlert');
-  if (out.length || low.length) {
+  if (out.length||low.length) {
     bar.classList.remove('hidden');
-    let msg = '';
-    if (out.length) msg += `OUT OF STOCK: ${out.join(', ')}. `;
-    if (low.length) msg += `LOW STOCK (≤5): ${low.join(', ')}.`;
-    document.getElementById('lowStockMsg').textContent = msg;
-  } else {
-    bar.classList.add('hidden');
-  }
+    let msg='';
+    if(out.length) msg+=`OUT OF STOCK: ${out.join(', ')}. `;
+    if(low.length) msg+=`LOW STOCK (≤5): ${low.join(', ')}.`;
+    document.getElementById('lowStockMsg').textContent=msg;
+  } else bar.classList.add('hidden');
 }
 
-// ─── RENDER TABLE ───────────────────────────
+// ─── INVENTORY TABLE ────────────────────────
 function renderInventoryTable() {
   const tbody = document.getElementById('tableBody');
   tbody.innerHTML = '';
-  products.forEach((p) => {
+  products.forEach(p=>{
+    const sc = p.stock===0?'out':p.stock<=5?'low':'ok';
     const tr = document.createElement('tr');
-    const stockClass = p.stock === 0 ? 'out' : p.stock <= 5 ? 'low' : 'ok';
-    tr.innerHTML = `
+    tr.innerHTML=`
       <td class="product-name">${escHtml(p.name)}</td>
       <td class="price-cell">&#8369;${p.price.toLocaleString()}</td>
       <td class="align-center">
-        <span class="stock-badge ${stockClass}" id="stock_${p._id}"
+        <span class="stock-badge ${sc}" id="stock_${p._id}"
           onclick="promptRestock('${p._id}','${escHtml(p.name)}',${p.stock})"
           style="cursor:pointer" title="Click to restock">${p.stock}</span>
       </td>
@@ -115,398 +106,356 @@ function renderInventoryTable() {
   recalcTotals();
 }
 
-async function promptRestock(id, name, currentStock) {
-  const input = prompt(`RESTOCK: ${name}\nCurrent stock: ${currentStock}\n\nEnter NEW stock total:`);
-  if (input === null) return;
-  const newStock = parseInt(input, 10);
-  if (isNaN(newStock) || newStock < 0) { notify('Invalid amount.', 'error'); return; }
+async function promptRestock(id, name, cur) {
+  const v = prompt(`RESTOCK: ${name}\nKasalukuyang stock: ${cur}\n\nBagong stock total:`);
+  if (v===null) return;
+  const n = parseInt(v,10);
+  if (isNaN(n)||n<0) { notify('Invalid amount.','error'); return; }
   try {
-    await apiFetch(`/products/${id}`, { method: 'PATCH', body: JSON.stringify({ stock: newStock }) });
-    notify(`${name} restocked to ${newStock} units!`, 'success');
+    await apiFetch(`/products/${id}`,{method:'PATCH',body:JSON.stringify({stock:n})});
+    notify(`${name} restocked to ${n} units!`,'success');
     await loadProducts();
-  } catch (err) {
-    notify('Restock failed: ' + err.message, 'error');
-  }
+  } catch(e){ notify('Restock failed: '+e.message,'error'); }
 }
 
 function onSoldInput(input, id) {
-  const sold  = parseInt(input.value, 10) || 0;
-  const price = parseFloat(input.dataset.price);
-  const stock = parseInt(input.dataset.stock, 10);
-  input.classList.toggle('error', sold > stock);
-  document.getElementById(`sub_${id}`).textContent = '\u20B1' + calcSubtotal(sold, price).toLocaleString();
+  const sold=parseInt(input.value,10)||0, price=+input.dataset.price, stock=+input.dataset.stock;
+  input.classList.toggle('error', sold>stock);
+  document.getElementById(`sub_${id}`).textContent='\u20B1'+(Math.max(0,sold)*price).toLocaleString();
   recalcTotals();
 }
-function calcSubtotal(sold, price) { return Math.max(0, parseInt(sold,10)||0) * price; }
 function recalcTotals() {
-  let totalSales = 0, totalStock = 0;
-  products.forEach((p) => {
-    const s = parseInt(document.getElementById(`sold_${p._id}`)?.value, 10) || 0;
-    totalSales += calcSubtotal(s, p.price);
-    totalStock += p.stock * p.price;
+  let ts=0, tv=0;
+  products.forEach(p=>{
+    const s=parseInt(document.getElementById(`sold_${p._id}`)?.value,10)||0;
+    ts+=Math.max(0,s)*p.price; tv+=p.stock*p.price;
   });
-  document.getElementById('totalSales').textContent      = '\u20B1' + totalSales.toLocaleString();
-  document.getElementById('totalStockValue').textContent = '\u20B1' + totalStock.toLocaleString();
+  document.getElementById('totalSales').textContent='\u20B1'+ts.toLocaleString();
+  document.getElementById('totalStockValue').textContent='\u20B1'+tv.toLocaleString();
 }
 
 // ─── SAVE ───────────────────────────────────
 async function saveInventory() {
   const date = document.getElementById('datePicker').value;
-  if (!date) { notify('Please select a date.', 'error'); return; }
-
-  const items = [];
-  let hasError = false, totalAmount = 0;
-  products.forEach((p) => {
-    const input = document.getElementById(`sold_${p._id}`);
-    const sold  = parseInt(input.value, 10) || 0;
-    if (sold > p.stock) { hasError = true; input.classList.add('error'); return; }
-    if (sold > 0) { items.push({ productId: p._id, sold }); totalAmount += sold * p.price; }
+  if (!date) { notify('Pumili ng date.','error'); return; }
+  const items=[]; let err=false;
+  products.forEach(p=>{
+    const input=document.getElementById(`sold_${p._id}`);
+    const sold=parseInt(input.value,10)||0;
+    if(sold>p.stock){err=true;input.classList.add('error');return;}
+    if(sold>0) items.push({productId:p._id,sold});
   });
+  if(err){notify('May sold qty na lampas sa stock.','error');return;}
+  if(!items.length){notify('Maglagay ng kahit isang sold qty.','error');return;}
 
-  if (hasError) { notify('Sold qty exceeds stock.', 'error'); return; }
-  if (items.length === 0) { notify('Enter at least one sold quantity.', 'error'); return; }
-
-  const btn = document.getElementById('btnSave');
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spinner"></span> SAVING\u2026';
-
+  const btn=document.getElementById('btnSave');
+  btn.disabled=true;
+  btn.innerHTML='<span class="spinner"></span> SAVING\u2026';
   try {
-    await apiFetch('/submit', { method: 'POST', body: JSON.stringify({ date, items }) });
-    // ✅ Auto-add sales to fund
-    addFundTransaction('deposit', totalAmount, `Sales — ${formatDate(date)}`);
-    notify(`Saved! ₱${totalAmount.toLocaleString()} added to Cash Fund.`, 'success');
+    await apiFetch('/submit',{method:'POST',body:JSON.stringify({date,items})});
+    notify('Saved! ✅','success');
     await loadProducts();
-    await loadHistory();
-  } catch (err) {
-    notify('Save failed: ' + err.message, 'error');
+    await loadHistory(); // this will auto-refresh the fund
+  } catch(e){
+    notify('Save failed: '+e.message,'error');
   } finally {
-    btn.disabled = false;
-    btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> SAVE`;
+    btn.disabled=false;
+    btn.innerHTML=`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> SAVE`;
   }
 }
-
 function resetForm() {
-  products.forEach((p) => {
-    const input = document.getElementById(`sold_${p._id}`);
-    if (input) { input.value = 0; input.classList.remove('error'); }
-    const sub = document.getElementById(`sub_${p._id}`);
-    if (sub) sub.textContent = '\u20B10';
+  products.forEach(p=>{
+    const i=document.getElementById(`sold_${p._id}`); if(i){i.value=0;i.classList.remove('error');}
+    const s=document.getElementById(`sub_${p._id}`); if(s) s.textContent='\u20B10';
   });
-  recalcTotals();
-  notify('Form reset.', 'info');
-}
-
-// ─── RESTOCK COUNTDOWN ──────────────────────
-function setRestockDate() {
-  const val = document.getElementById('restockDatePicker').value;
-  if (!val) { notify('Please pick a restock date.', 'error'); return; }
-  localStorage.setItem('restockDate', val);
-  loadRestockDate();
-  updateFundUI();
-  notify('Restock date set!', 'success');
-}
-function clearRestockDate() {
-  localStorage.removeItem('restockDate');
-  document.getElementById('restockDateDisplay').textContent = 'Not set';
-  document.getElementById('countdownDays').textContent = '—';
-  document.getElementById('countdownDays').className = 'countdown-num';
-  document.getElementById('restockDatePicker').value = '';
-  updateFundUI();
-}
-function loadRestockDate() {
-  const saved = localStorage.getItem('restockDate');
-  if (!saved) return;
-  document.getElementById('restockDatePicker').value = saved;
-  document.getElementById('restockDateDisplay').textContent = formatDate(saved);
-  updateCountdown(saved);
-}
-function getDaysUntilRestock() {
-  const saved = localStorage.getItem('restockDate');
-  if (!saved) return null;
-  const today   = new Date(); today.setHours(0,0,0,0);
-  const restock = new Date(saved + 'T00:00:00');
-  return Math.ceil((restock - today) / (1000*60*60*24));
-}
-function updateCountdown(isoDate) {
-  const days = getDaysUntilRestock();
-  const el   = document.getElementById('countdownDays');
-  if (days === null) return;
-  if (days < 0)      { el.textContent = 'OVERDUE'; el.className = 'countdown-num urgent'; }
-  else if (days === 0) { el.textContent = 'TODAY';  el.className = 'countdown-num urgent'; }
-  else if (days <= 2)  { el.textContent = days;     el.className = 'countdown-num soon'; }
-  else                 { el.textContent = days;     el.className = 'countdown-num'; }
+  recalcTotals(); notify('Form reset.','info');
 }
 
 // ══════════════════════════════════════════════
-//  💰 CASH FUND MANAGER
+//  💰 PERIOD FUND TRACKER
+//
+//  Logic:
+//  - User sets a START date and END date (ahente babalik)
+//  - Fund = sum of all sales (from history) within that date range
+//  - Deductions = stock purchases manually entered by user (stored in localStorage)
+//  - Net balance = Fund sales - Deductions
 // ══════════════════════════════════════════════
 
-// Fund stored in localStorage:
-// fund_transactions: [{id, type:'deposit'|'withdraw', amount, note, date}]
-// fund_target: number
-
-function getFundTransactions() {
-  try { return JSON.parse(localStorage.getItem('fund_transactions') || '[]'); } catch { return []; }
-}
-function saveFundTransactions(txs) {
-  localStorage.setItem('fund_transactions', JSON.stringify(txs));
-}
-function getFundTarget() {
-  return parseFloat(localStorage.getItem('fund_target') || '0');
-}
-function getFundBalance() {
-  return getFundTransactions().reduce((acc, tx) => {
-    return tx.type === 'deposit' ? acc + tx.amount : acc - tx.amount;
-  }, 0);
-}
-function getDailyAvgFromHistory() {
-  if (!history.length) return 0;
-  const total = history.reduce((a, r) => a + (r.totalSoldPrice||0), 0);
-  return total / history.length;
+function getPeriod() {
+  const start = localStorage.getItem('period_start');
+  const end   = localStorage.getItem('period_end');
+  return (start && end) ? {start, end} : null;
 }
 
-function initFund() {
-  const target = getFundTarget();
-  if (target) document.getElementById('fundTargetInput').value = target;
-  renderFundUI();
+function loadPeriodFromStorage() {
+  const p = getPeriod();
+  if (!p) return;
+  document.getElementById('periodStart').value = p.start;
+  document.getElementById('periodEnd').value   = p.end;
+  showPeriodStatus(p);
 }
 
-function setFundTarget() {
-  const val = parseFloat(document.getElementById('fundTargetInput').value);
-  if (isNaN(val) || val <= 0) { notify('Enter a valid budget amount.', 'error'); return; }
-  localStorage.setItem('fund_target', val);
+function setPeriod() {
+  const start = document.getElementById('periodStart').value;
+  const end   = document.getElementById('periodEnd').value;
+  if (!start||!end) { notify('Pumili ng simula at katapusan ng period.','error'); return; }
+  if (start>end) { notify('Dapat ang Start ay mas maaga kaysa End.','error'); return; }
+  localStorage.setItem('period_start', start);
+  localStorage.setItem('period_end', end);
+  showPeriodStatus({start, end});
   updateFundUI();
-  notify(`Restock budget set to ₱${val.toLocaleString()}`, 'success');
+  notify('Period naka-set na! ✅','success');
 }
 
-function addFundTransaction(type, amount, note) {
-  const txs = getFundTransactions();
-  txs.unshift({
-    id:     Date.now().toString(),
-    type,
-    amount: parseFloat(amount),
-    note:   note || '',
-    date:   new Date().toISOString(),
-  });
-  saveFundTransactions(txs);
-  renderFundUI();
+function clearPeriod() {
+  localStorage.removeItem('period_start');
+  localStorage.removeItem('period_end');
+  document.getElementById('periodStart').value='';
+  document.getElementById('periodEnd').value='';
+  document.getElementById('periodStatusBar').style.display='none';
+  updateFundUI();
 }
 
-function manualDeposit() {
-  const amount = parseFloat(document.getElementById('depositAmount').value);
-  const note   = document.getElementById('depositNote').value.trim() || 'Manual deposit';
-  if (isNaN(amount) || amount <= 0) { notify('Enter a valid amount.', 'error'); return; }
-  addFundTransaction('deposit', amount, note);
-  document.getElementById('depositAmount').value = '';
-  document.getElementById('depositNote').value   = '';
-  notify(`₱${amount.toLocaleString()} added to fund!`, 'success');
+function showPeriodStatus({start, end}) {
+  const bar     = document.getElementById('periodStatusBar');
+  const label   = document.getElementById('periodLabel');
+  const daysEl  = document.getElementById('periodDaysLeft');
+  const today   = toIsoDate(new Date());
+  const daysLeft= daysBetween(today, end);
+  const totalDays = daysBetween(start, end);
+  bar.style.display='flex';
+  label.textContent = `${formatDate(start)} → ${formatDate(end)} (${totalDays} araw na period)`;
+  if(daysLeft<0)       daysEl.textContent='OVERDUE — Dapat nakabalik na si ahente!';
+  else if(daysLeft===0) daysEl.textContent='TODAY — Bumabalik si ahente ngayon!';
+  else                  daysEl.textContent=`${daysLeft} araw pa bago bumalik si ahente`;
+  daysEl.style.color = daysLeft<=1?'var(--danger)':daysLeft<=3?'var(--warning)':'var(--info)';
 }
 
-function withdraw() {
-  const amount = parseFloat(document.getElementById('withdrawAmount').value);
-  const note   = document.getElementById('withdrawNote').value.trim() || 'Stock purchase';
-  if (isNaN(amount) || amount <= 0) { notify('Enter a valid amount.', 'error'); return; }
-  const balance = getFundBalance();
-  if (amount > balance) {
-    if (!confirm(`Fund balance is only ₱${balance.toLocaleString()}. Deduct anyway?`)) return;
+// Get purchases (deductions) from localStorage
+function getPurchases() {
+  try { return JSON.parse(localStorage.getItem('fund_purchases')||'[]'); } catch { return []; }
+}
+function savePurchases(arr) { localStorage.setItem('fund_purchases', JSON.stringify(arr)); }
+
+// Total sales within the set period (from MongoDB history)
+function getPeriodSales() {
+  const p = getPeriod(); if(!p) return 0;
+  return history
+    .filter(r => r.date >= p.start && r.date <= p.end)
+    .reduce((a,r) => a+(r.totalSoldPrice||0), 0);
+}
+
+// Total spent buying stock within the set period
+function getPeriodSpent() {
+  const p = getPeriod(); if(!p) return 0;
+  const today = toIsoDate(new Date());
+  return getPurchases()
+    .filter(tx => tx.date >= p.start && tx.date <= (p.end < today ? p.end : today))
+    .reduce((a,tx) => a+tx.amount, 0);
+}
+
+function buyStock() {
+  const amount = parseFloat(document.getElementById('buyAmount').value);
+  const note   = document.getElementById('buyNote').value.trim() || 'Stock purchase';
+  if (isNaN(amount)||amount<=0) { notify('Maglagay ng tamang halaga.','error'); return; }
+  const p = getPeriod();
+  if (!p) { notify('Mag-set muna ng period!','error'); return; }
+
+  const balance = getPeriodSales() - getPeriodSpent();
+  if (amount>balance) {
+    if (!confirm(`Ang pondo mo ay ₱${balance.toLocaleString()} lang.\n₱${amount.toLocaleString()} ang gusto mong ibawas.\n\nItuloy pa rin?`)) return;
   }
-  addFundTransaction('withdraw', amount, note);
-  document.getElementById('withdrawAmount').value = '';
-  document.getElementById('withdrawNote').value   = '';
-  notify(`₱${amount.toLocaleString()} deducted from fund.`, 'info');
+
+  const purchases = getPurchases();
+  purchases.unshift({
+    id:     Date.now().toString(),
+    amount,
+    note,
+    date:   toIsoDate(new Date()),
+    time:   new Date().toLocaleTimeString('en-PH',{hour:'2-digit',minute:'2-digit'}),
+  });
+  savePurchases(purchases);
+  document.getElementById('buyAmount').value='';
+  document.getElementById('buyNote').value='';
+  updateFundUI();
+  notify(`₱${amount.toLocaleString()} na-deduct sa pondo.`,'info');
 }
 
-function deleteFundTx(id) {
-  if (!confirm('Remove this transaction?')) return;
-  const txs = getFundTransactions().filter(t => t.id !== id);
-  saveFundTransactions(txs);
-  renderFundUI();
-  notify('Transaction removed.', 'info');
+function deletePurchase(id) {
+  if (!confirm('I-remove ang purchase na ito?')) return;
+  savePurchases(getPurchases().filter(t=>t.id!==id));
+  updateFundUI();
+  notify('Purchase removed.','info');
 }
 
 function confirmResetFund() {
-  if (!confirm('Reset entire cash fund? All transactions will be deleted.')) return;
-  localStorage.removeItem('fund_transactions');
-  renderFundUI();
-  notify('Cash fund reset.', 'info');
-}
-
-function toggleFundHistory() {
-  const wrap = document.getElementById('fundHistoryWrap');
-  wrap.classList.toggle('hidden');
-}
-
-function renderFundUI() {
+  if (!confirm('I-reset ang lahat ng purchases? Hindi mabubura ang sales history.')) return;
+  localStorage.removeItem('fund_purchases');
   updateFundUI();
-  renderFundTransactions();
+  notify('Fund purchases na-reset.','info');
 }
 
 function updateFundUI() {
-  const balance  = getFundBalance();
-  const target   = getFundTarget();
-  const daysLeft = getDaysUntilRestock();
-  const dailyAvg = getDailyAvgFromHistory();
+  const p        = getPeriod();
+  const sales    = getPeriodSales();
+  const spent    = getPeriodSpent();
+  const balance  = sales - spent;
+  const today    = toIsoDate(new Date());
+
+  // Benta sa period
+  document.getElementById('fundPeriodSales').textContent = '\u20B1'+sales.toLocaleString();
+  if (p) {
+    const recs = history.filter(r=>r.date>=p.start&&r.date<=p.end);
+    document.getElementById('fundPeriodSalesSub').textContent =
+      `${recs.length} araw na recorded mula ${formatDate(p.start)}`;
+  } else {
+    document.getElementById('fundPeriodSalesSub').textContent = 'Mag-set ng period';
+  }
+
+  // Spent
+  document.getElementById('fundSpent').textContent = '\u20B1'+spent.toLocaleString();
+  const txCount = getPurchases().filter(t=>p?t.date>=p.start:true).length;
+  document.getElementById('fundSpentSub').textContent =
+    txCount ? `${txCount} purchase${txCount>1?'s':''} sa period` : 'Walang binili pa';
 
   // Balance
-  document.getElementById('fundBalance').textContent = '\u20B1' + Math.max(0,balance).toLocaleString();
-
-  // Target
-  document.getElementById('fundTarget').textContent = target ? '\u20B1' + target.toLocaleString() : '₱0';
-
-  // Projection
-  let projected = balance;
-  if (daysLeft !== null && daysLeft > 0 && dailyAvg > 0) {
-    projected = balance + (dailyAvg * daysLeft);
-  }
-  document.getElementById('fundProjected').textContent = '\u20B1' + Math.round(Math.max(0,projected)).toLocaleString();
-
-  if (daysLeft !== null && dailyAvg > 0) {
-    document.getElementById('fundProjectedSub').textContent =
-      `+₱${Math.round(dailyAvg).toLocaleString()}/day × ${daysLeft} days`;
-  } else if (daysLeft === null) {
-    document.getElementById('fundProjectedSub').textContent = 'Set restock date first';
+  const balEl  = document.getElementById('fundBalance');
+  const boxEl  = document.getElementById('fundBalanceBox');
+  const iconEl = document.getElementById('fundBalanceIcon');
+  const subEl  = document.getElementById('fundBalanceSub');
+  balEl.textContent = '\u20B1'+Math.abs(balance).toLocaleString()+(balance<0?' (KULANG)':'');
+  boxEl.className = 'fund-flow-box';
+  if (!p) {
+    iconEl.textContent='💰'; subEl.textContent='Mag-set ng period'; balEl.style.color='var(--text-primary)';
+  } else if (balance>=0) {
+    boxEl.classList.add('ok'); iconEl.textContent='💚'; subEl.textContent='Kaya mo pang bumili ng stock!'; balEl.style.color='var(--accent)';
   } else {
-    document.getElementById('fundProjectedSub').textContent = 'No sales history yet';
+    boxEl.classList.add('bad'); iconEl.textContent='🔴'; subEl.textContent='Kulang na ang pondo!'; balEl.style.color='var(--danger)';
   }
 
-  // Progress bar
-  const pct   = target > 0 ? Math.min(100, Math.round((balance / target) * 100)) : 0;
-  const projPct = target > 0 ? Math.min(100, Math.round((projected / target) * 100)) : 0;
-  const fill  = document.getElementById('fundProgressFill');
-  const pctEl = document.getElementById('fundProgressPct');
+  // Progress bar (sales = 100%, spent reduces it)
+  const prgWrap = document.getElementById('fundProgressWrap');
+  if (p && sales>0) {
+    prgWrap.style.display='flex';
+    const pct     = Math.min(100, Math.round((spent/sales)*100));
+    const remPct  = 100-pct;
+    const fill    = document.getElementById('fundProgressFill');
+    const pctEl   = document.getElementById('fundProgressPct');
+    // Bar shows REMAINING (not spent)
+    fill.style.width = remPct+'%';
+    pctEl.textContent = remPct+'% natitira';
+    fill.className = 'fund-progress-fill';
+    if(remPct<30)      fill.classList.add('bad');
+    else if(remPct<60) fill.classList.add('warn');
 
-  fill.style.width  = pct + '%';
-  pctEl.textContent = pct + '%';
-  fill.className = 'fund-progress-fill';
-  if (pct >= 100)     fill.classList.add('ok');
-  else if (pct >= 60) fill.classList.add('warn');
-  else                fill.classList.add('bad');
+    document.getElementById('fundProgressLeft').textContent =
+      balance>=0 ? `Natitira: ₱${balance.toLocaleString()} sa pondo mo`
+                 : `Kulang ng ₱${Math.abs(balance).toLocaleString()}!`;
+    document.getElementById('fundProgressLeft').style.color =
+      balance>=0 ? 'var(--success)' : 'var(--danger)';
 
-  // Need more
-  const needMoreEl = document.getElementById('fundNeedMore');
-  const daysInfoEl = document.getElementById('fundDaysInfo');
-  if (target > 0) {
-    const diff = target - balance;
-    if (diff <= 0) {
-      needMoreEl.textContent = `✅ Budget reached! Extra: ₱${Math.abs(diff).toLocaleString()}`;
-      needMoreEl.style.color = 'var(--success)';
+    // Projection: how much more will you earn before period ends
+    const daysLeft = daysBetween(today, p.end);
+    if (daysLeft>0) {
+      const recs = history.filter(r=>r.date>=p.start&&r.date<=today);
+      const elapsed = daysBetween(p.start, today)||1;
+      const dailyAvg = recs.length ? sales/elapsed : 0;
+      const projected = balance + (dailyAvg*daysLeft);
+      document.getElementById('fundProjectedInfo').textContent =
+        `+₱${Math.round(dailyAvg).toLocaleString()}/araw × ${daysLeft} days → Projected: ₱${Math.round(projected).toLocaleString()}`;
     } else {
-      needMoreEl.textContent = `Need ₱${diff.toLocaleString()} more (${pct}% reached)`;
-      needMoreEl.style.color = 'var(--text-dim)';
+      document.getElementById('fundProjectedInfo').textContent = '';
     }
-    if (daysLeft !== null) {
-      daysInfoEl.textContent = `${daysLeft} day${daysLeft !== 1 ? 's' : ''} until ahente`;
-      daysInfoEl.style.color = daysLeft <= 2 ? 'var(--danger)' : 'var(--text-dim)';
-    }
+  } else if (p && sales===0) {
+    prgWrap.style.display='flex';
+    document.getElementById('fundProgressFill').style.width='0%';
+    document.getElementById('fundProgressPct').textContent='0%';
+    document.getElementById('fundProgressLeft').textContent='Wala pang sales sa period na ito.';
+    document.getElementById('fundProgressLeft').style.color='var(--text-dim)';
+    document.getElementById('fundProjectedInfo').textContent='';
   } else {
-    needMoreEl.textContent = 'Set a restock budget to track progress';
-    needMoreEl.style.color = 'var(--text-dim)';
+    prgWrap.style.display='none';
   }
 
-  // Status box
-  const statusIcon = document.getElementById('fundStatusIcon');
-  const statusText = document.getElementById('fundStatusText');
-  statusText.className = 'fund-status-text';
-
-  if (!target) {
-    statusIcon.textContent = '⏳';
-    statusText.textContent = 'Set budget & date';
-  } else if (balance >= target) {
-    statusIcon.textContent = '✅';
-    statusText.textContent = 'READY TO BUY!';
-    statusText.classList.add('ok');
-  } else if (projected >= target) {
-    statusIcon.textContent = '📈';
-    statusText.textContent = "YOU'LL MAKE IT!";
-    statusText.classList.add('warn');
-  } else {
-    const shortfall = Math.round(target - projected);
-    statusIcon.textContent = '⚠️';
-    statusText.textContent = `SHORT ₱${shortfall.toLocaleString()}`;
-    statusText.classList.add('bad');
-  }
+  // Render purchase list
+  renderPurchaseList(p);
 }
 
-function renderFundTransactions() {
-  const txs   = getFundTransactions();
+function renderPurchaseList(p) {
   const list  = document.getElementById('fundTxList');
   const count = document.getElementById('fundTxCount');
-  count.textContent = `${txs.length} transaction${txs.length !== 1 ? 's' : ''}`;
+  const purchases = p
+    ? getPurchases().filter(t=>t.date>=p.start)
+    : getPurchases();
 
-  if (!txs.length) {
-    list.innerHTML = '<div style="padding:20px 24px;text-align:center;color:var(--text-dim);font-family:var(--font-cond);font-size:.85rem">No transactions yet. Save a sale to start!</div>';
+  count.textContent = `${purchases.length} purchase${purchases.length!==1?'s':''}`;
+
+  if (!purchases.length) {
+    list.innerHTML='<div class="fund-empty">Wala pang biniling stock sa period na ito.</div>';
     return;
   }
-
-  list.innerHTML = txs.map(tx => {
-    const d   = new Date(tx.date);
-    const dStr = `${d.getDate().toString().padStart(2,'0')}/${(d.getMonth()+1).toString().padStart(2,'0')} ${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}`;
-    const sign = tx.type === 'deposit' ? '+' : '−';
-    return `<div class="fund-tx-item">
-      <div class="fund-tx-dot ${tx.type}"></div>
-      <div class="fund-tx-date">${dStr}</div>
+  list.innerHTML = purchases.map(tx=>`
+    <div class="fund-tx-item">
+      <div class="fund-tx-dot"></div>
+      <div class="fund-tx-date">${tx.date} ${tx.time||''}</div>
       <div class="fund-tx-note">${escHtml(tx.note)}</div>
-      <div class="fund-tx-amount ${tx.type}">${sign}₱${tx.amount.toLocaleString()}</div>
-      <button class="fund-tx-del" onclick="deleteFundTx('${tx.id}')" title="Remove">✕</button>
-    </div>`;
-  }).join('');
+      <div class="fund-tx-amount">−₱${tx.amount.toLocaleString()}</div>
+      <button class="fund-tx-del" onclick="deletePurchase('${tx.id}')" title="Remove">✕</button>
+    </div>`).join('');
 }
 
 // ─── HISTORY ────────────────────────────────
 async function loadHistory() {
   try {
     history = await apiFetch('/history');
-    filterHistory(currentFilter, null);
-    updateDashboardStats();
-    updateFundUI(); // refresh projection after history loads
-  } catch { renderHistoryRows([]); }
+  } catch { history=[]; }
+  filterHistory(currentFilter, null);
+  updateDashboardStats();
+  updateFundUI();
 }
 
-function getWeekRange(offset=0) {
-  const now = new Date(); now.setHours(0,0,0,0);
-  const startOfWeek = new Date(now); startOfWeek.setDate(now.getDate() - now.getDay() + offset*7);
-  const endOfWeek   = new Date(startOfWeek); endOfWeek.setDate(startOfWeek.getDate() + 6);
-  return { from: toIsoDate(startOfWeek), to: toIsoDate(endOfWeek) };
+function getWeekRange(offset=0){
+  const now=new Date();now.setHours(0,0,0,0);
+  const s=new Date(now);s.setDate(now.getDate()-now.getDay()+offset*7);
+  const e=new Date(s);e.setDate(s.getDate()+6);
+  return{from:toIsoDate(s),to:toIsoDate(e)};
 }
-function getMonthRange(offset=0) {
-  const now = new Date(); const y = now.getFullYear(); const m = now.getMonth()+offset;
-  return { from: toIsoDate(new Date(y,m,1)), to: toIsoDate(new Date(y,m+1,0)) };
+function getMonthRange(offset=0){
+  const now=new Date();const y=now.getFullYear();const m=now.getMonth()+offset;
+  return{from:toIsoDate(new Date(y,m,1)),to:toIsoDate(new Date(y,m+1,0))};
 }
 
 function filterHistory(type, btnEl) {
-  currentFilter = type;
-  if (btnEl) {
-    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-    btnEl.classList.add('active');
-  }
-  let filtered = [...history];
-  const today  = toIsoDate(new Date());
-  if (type === 'today')     filtered = history.filter(r => r.date === today);
-  else if (type === 'week') { const {from,to} = getWeekRange(0);  filtered = history.filter(r => r.date>=from && r.date<=to); }
-  else if (type === 'lastweek') { const {from,to} = getWeekRange(-1); filtered = history.filter(r => r.date>=from && r.date<=to); }
-  else if (type === 'month') { const {from,to} = getMonthRange(0);  filtered = history.filter(r => r.date>=from && r.date<=to); }
-  else if (type === 'lastmonth') { const {from,to} = getMonthRange(-1); filtered = history.filter(r => r.date>=from && r.date<=to); }
-  else if (type === 'custom') {
-    const from = document.getElementById('filterFrom').value;
-    const to   = document.getElementById('filterTo').value;
-    if (!from || !to) { notify('Select both From and To dates.', 'error'); return; }
-    filtered = history.filter(r => r.date>=from && r.date<=to);
-    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  currentFilter=type;
+  if(btnEl){document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));btnEl.classList.add('active');}
+  let filtered=[...history];
+  const today=toIsoDate(new Date());
+  if(type==='today') filtered=history.filter(r=>r.date===today);
+  else if(type==='week'){const{from,to}=getWeekRange(0);filtered=history.filter(r=>r.date>=from&&r.date<=to);}
+  else if(type==='lastweek'){const{from,to}=getWeekRange(-1);filtered=history.filter(r=>r.date>=from&&r.date<=to);}
+  else if(type==='month'){const{from,to}=getMonthRange(0);filtered=history.filter(r=>r.date>=from&&r.date<=to);}
+  else if(type==='lastmonth'){const{from,to}=getMonthRange(-1);filtered=history.filter(r=>r.date>=from&&r.date<=to);}
+  else if(type==='custom'){
+    const from=document.getElementById('filterFrom').value;
+    const to=document.getElementById('filterTo').value;
+    if(!from||!to){notify('Pumili ng From at To dates.','error');return;}
+    filtered=history.filter(r=>r.date>=from&&r.date<=to);
+    document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
   }
   renderHistoryRows(filtered);
   updateHistorySummary(filtered);
 }
 
 function renderHistoryRows(rows) {
-  const tbody = document.getElementById('historyBody');
-  if (!rows.length) { tbody.innerHTML = '<tr><td colspan="4" class="empty-row">No records for this period.</td></tr>'; return; }
-  tbody.innerHTML = '';
-  rows.forEach((rec) => {
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
+  const tbody=document.getElementById('historyBody');
+  if(!rows.length){tbody.innerHTML='<tr><td colspan="4" class="empty-row">Walang records para sa period na ito.</td></tr>';return;}
+  tbody.innerHTML='';
+  rows.forEach(rec=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML=`
       <td class="history-date">${formatDate(rec.date)}</td>
-      <td class="history-amount" style="color:var(--accent)">${rec.totalSoldPrice ? '\u20B1'+rec.totalSoldPrice.toLocaleString() : '—'}</td>
-      <td class="history-amount" style="color:var(--text-muted)">${rec.totalStockPrice ? '\u20B1'+rec.totalStockPrice.toLocaleString() : '—'}</td>
+      <td class="history-amount" style="color:var(--accent)">${rec.totalSoldPrice?'\u20B1'+rec.totalSoldPrice.toLocaleString():'—'}</td>
+      <td class="history-amount" style="color:var(--text-muted)">${rec.totalStockPrice?'\u20B1'+rec.totalStockPrice.toLocaleString():'—'}</td>
       <td><div class="actions-cell">
         <button class="btn btn-ghost btn-sm" onclick="viewRecord('${rec._id}')">VIEW</button>
         <button class="btn btn-danger btn-sm" onclick="deleteRecord('${rec._id}',this)">DEL</button>
@@ -514,121 +463,100 @@ function renderHistoryRows(rows) {
     tbody.appendChild(tr);
   });
 }
-function updateHistorySummary(rows) {
-  const s = document.getElementById('historySummary');
-  if (!rows.length) { s.style.display='none'; return; }
+function updateHistorySummary(rows){
+  const s=document.getElementById('historySummary');
+  if(!rows.length){s.style.display='none';return;}
   s.style.display='flex';
-  const total = rows.reduce((a,r)=>a+(r.totalSoldPrice||0),0);
-  const avg   = Math.round(total/rows.length);
-  document.getElementById('summaryCount').textContent = rows.length;
-  document.getElementById('summaryTotal').textContent = '\u20B1'+total.toLocaleString();
-  document.getElementById('summaryAvg').textContent   = '\u20B1'+avg.toLocaleString();
+  const total=rows.reduce((a,r)=>a+(r.totalSoldPrice||0),0);
+  document.getElementById('summaryCount').textContent=rows.length;
+  document.getElementById('summaryTotal').textContent='\u20B1'+total.toLocaleString();
+  document.getElementById('summaryAvg').textContent='\u20B1'+Math.round(total/rows.length).toLocaleString();
 }
 
-function updateDashboardStats() {
-  const {from:wFrom,to:wTo} = getWeekRange(0);
-  const weekRecs  = history.filter(r=>r.date>=wFrom&&r.date<=wTo);
-  const weekTotal = weekRecs.reduce((a,r)=>a+(r.totalSoldPrice||0),0);
-  document.getElementById('statWeekSales').textContent = '\u20B1'+weekTotal.toLocaleString();
-  document.getElementById('statWeekDays').textContent  = `${weekRecs.length} day${weekRecs.length!==1?'s':''} recorded`;
+function updateDashboardStats(){
+  const{from:wFrom,to:wTo}=getWeekRange(0);
+  const wr=history.filter(r=>r.date>=wFrom&&r.date<=wTo);
+  const wt=wr.reduce((a,r)=>a+(r.totalSoldPrice||0),0);
+  document.getElementById('statWeekSales').textContent='\u20B1'+wt.toLocaleString();
+  document.getElementById('statWeekDays').textContent=`${wr.length} araw na recorded`;
 
-  const {from:mFrom,to:mTo} = getMonthRange(0);
-  const monthRecs  = history.filter(r=>r.date>=mFrom&&r.date<=mTo);
-  const monthTotal = monthRecs.reduce((a,r)=>a+(r.totalSoldPrice||0),0);
-  document.getElementById('statMonthSales').textContent = '\u20B1'+monthTotal.toLocaleString();
-  document.getElementById('statMonthDays').textContent  = `${monthRecs.length} day${monthRecs.length!==1?'s':''} recorded`;
+  const{from:mFrom,to:mTo}=getMonthRange(0);
+  const mr=history.filter(r=>r.date>=mFrom&&r.date<=mTo);
+  const mt=mr.reduce((a,r)=>a+(r.totalSoldPrice||0),0);
+  document.getElementById('statMonthSales').textContent='\u20B1'+mt.toLocaleString();
+  document.getElementById('statMonthDays').textContent=`${mr.length} araw na recorded`;
 
-  const allTotal = history.reduce((a,r)=>a+(r.totalSoldPrice||0),0);
-  const dailyAvg = history.length ? Math.round(allTotal/history.length) : 0;
-  document.getElementById('statDailyAvg').textContent = '\u20B1'+dailyAvg.toLocaleString();
-  document.getElementById('statTotalDays').textContent = `${history.length} total days`;
+  const at=history.reduce((a,r)=>a+(r.totalSoldPrice||0),0);
+  document.getElementById('statDailyAvg').textContent='\u20B1'+(history.length?Math.round(at/history.length):0).toLocaleString();
+  document.getElementById('statTotalDays').textContent=`${history.length} total na araw`;
 
-  const soldMap = {};
-  weekRecs.forEach(rec=>{(rec.items||[]).forEach(item=>{const n=item.productName||'?'; soldMap[n]=(soldMap[n]||0)+item.sold;});});
-  const entries = Object.entries(soldMap).sort((a,b)=>b[1]-a[1]);
-  if (entries.length) {
-    document.getElementById('statBestSeller').textContent    = entries[0][0];
-    document.getElementById('statBestSellerQty').textContent = `${entries[0][1]} pcs sold this week`;
+  const sm={};
+  wr.forEach(rec=>{(rec.items||[]).forEach(item=>{const n=item.productName||'?';sm[n]=(sm[n]||0)+item.sold;});});
+  const e=Object.entries(sm).sort((a,b)=>b[1]-a[1]);
+  if(e.length){
+    document.getElementById('statBestSeller').textContent=e[0][0];
+    document.getElementById('statBestSellerQty').textContent=`${e[0][1]} pcs ngayong linggo`;
   } else {
-    document.getElementById('statBestSeller').textContent    = '—';
-    document.getElementById('statBestSellerQty').textContent = 'no data this week';
+    document.getElementById('statBestSeller').textContent='—';
+    document.getElementById('statBestSellerQty').textContent='wala pang data ngayong linggo';
   }
 }
 
-async function deleteRecord(id, btn) {
-  if (!confirm('Delete this record?')) return;
-  btn.disabled = true;
-  try {
-    await apiFetch(`/history?id=${id}`, { method: 'DELETE' });
-    history = history.filter(r=>r._id!==id);
-    filterHistory(currentFilter, null);
-    updateDashboardStats();
-    updateFundUI();
-    notify('Record deleted.', 'info');
-  } catch (err) {
-    notify('Delete failed: '+err.message, 'error');
-    btn.disabled = false;
-  }
+async function deleteRecord(id,btn){
+  if(!confirm('I-delete ang record na ito?'))return;
+  btn.disabled=true;
+  try{
+    await apiFetch(`/history?id=${id}`,{method:'DELETE'});
+    history=history.filter(r=>r._id!==id);
+    filterHistory(currentFilter,null);updateDashboardStats();updateFundUI();
+    notify('Record deleted.','info');
+  }catch(e){notify('Delete failed: '+e.message,'error');btn.disabled=false;}
 }
 
-function viewRecord(id) {
-  const rec = history.find(r=>r._id===id);
-  if (!rec) return;
-  document.getElementById('modalTitle').textContent = 'RECORD — '+formatDate(rec.date);
-  const tbody = document.getElementById('modalBody');
-  if (!rec.items||!rec.items.length) {
-    tbody.innerHTML='<tr><td colspan="4" class="empty-row">No item data.</td></tr>';
-  } else {
-    tbody.innerHTML=rec.items.map(item=>`
-      <tr>
-        <td class="product-name">${escHtml(item.productName||item.productId)}</td>
-        <td class="align-center price-cell">&#8369;${(item.price||0).toLocaleString()}</td>
-        <td class="align-center"><span class="stock-badge ok">${item.sold}</span></td>
-        <td class="subtotal-cell">&#8369;${(item.subtotal||0).toLocaleString()}</td>
-      </tr>`).join('');
-  }
+function viewRecord(id){
+  const rec=history.find(r=>r._id===id);if(!rec)return;
+  document.getElementById('modalTitle').textContent='RECORD — '+formatDate(rec.date);
+  const tbody=document.getElementById('modalBody');
+  if(!rec.items||!rec.items.length){tbody.innerHTML='<tr><td colspan="4" class="empty-row">No item data.</td></tr>';}
+  else{tbody.innerHTML=rec.items.map(item=>`
+    <tr>
+      <td class="product-name">${escHtml(item.productName||item.productId)}</td>
+      <td class="align-center price-cell">&#8369;${(item.price||0).toLocaleString()}</td>
+      <td class="align-center"><span class="stock-badge ok">${item.sold}</span></td>
+      <td class="subtotal-cell">&#8369;${(item.subtotal||0).toLocaleString()}</td>
+    </tr>`).join('');}
   document.getElementById('modal').classList.remove('hidden');
 }
-function closeModal() { document.getElementById('modal').classList.add('hidden'); }
-document.getElementById('modal').addEventListener('click',(e)=>{ if(e.target===e.currentTarget) closeModal(); });
+function closeModal(){document.getElementById('modal').classList.add('hidden');}
+document.getElementById('modal').addEventListener('click',e=>{if(e.target===e.currentTarget)closeModal();});
 
-// ─── EXPORT CSV ─────────────────────────────
-function exportCSV() {
-  if (!history.length) { notify('No history to export.', 'error'); return; }
-  const rows = [['Date','Product','Price','Sold','Subtotal','Total Sold','Total Stock']];
+// ─── CSV ────────────────────────────────────
+function exportCSV(){
+  if(!history.length){notify('Wala pang history.','error');return;}
+  const rows=[['Date','Product','Price','Sold','Subtotal','Total Sold','Total Stock']];
   history.forEach(rec=>{
-    if (rec.items&&rec.items.length) {
-      rec.items.forEach((item,i)=>{
-        rows.push([formatDate(rec.date),item.productName||'',item.price||'',item.sold,item.subtotal||'',
-          i===0?rec.totalSoldPrice||'':'', i===0?rec.totalStockPrice||'':'']);
-      });
-    } else {
-      rows.push([formatDate(rec.date),'','','','',rec.totalSoldPrice||'',rec.totalStockPrice||'']);
-    }
+    if(rec.items&&rec.items.length) rec.items.forEach((item,i)=>rows.push([formatDate(rec.date),item.productName||'',item.price||'',item.sold,item.subtotal||'',i===0?rec.totalSoldPrice||'':'',i===0?rec.totalStockPrice||'':'']));
+    else rows.push([formatDate(rec.date),'','','','',rec.totalSoldPrice||'',rec.totalStockPrice||'']);
   });
-  const csv=rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
   const a=document.createElement('a');
-  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
-  a.download=`cigarette-inventory-${new Date().toISOString().split('T')[0]}.csv`;
-  a.click();
-  notify('CSV exported!', 'success');
+  a.href=URL.createObjectURL(new Blob([rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n')],{type:'text/csv'}));
+  a.download=`cig-inv-${toIsoDate(new Date())}.csv`;a.click();
+  notify('CSV exported!','success');
 }
 
 // ─── BIND ───────────────────────────────────
-function bindHeaderActions() {
-  document.getElementById('btnSave').addEventListener('click', saveInventory);
-  document.getElementById('btnReset').addEventListener('click', resetForm);
-  document.getElementById('btnDownload').addEventListener('click', exportCSV);
+function bindHeaderActions(){
+  document.getElementById('btnSave').addEventListener('click',saveInventory);
+  document.getElementById('btnReset').addEventListener('click',resetForm);
+  document.getElementById('btnDownload').addEventListener('click',exportCSV);
 }
 
 // ─── UTILS ──────────────────────────────────
-let notifyTimer=null;
-function notify(msg,type='info') {
+let ntimer=null;
+function notify(msg,type='info'){
   const el=document.getElementById('notification');
-  el.textContent=msg; el.className=`notification ${type}`;
-  if(notifyTimer) clearTimeout(notifyTimer);
-  notifyTimer=setTimeout(()=>el.classList.add('hidden'),4500);
+  el.textContent=msg;el.className=`notification ${type}`;
+  if(ntimer)clearTimeout(ntimer);
+  ntimer=setTimeout(()=>el.classList.add('hidden'),4500);
 }
-function escHtml(str) {
-  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
+function escHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}

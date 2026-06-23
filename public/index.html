@@ -44,7 +44,7 @@
 
   <main class="main">
 
-    <!-- ── STATS ── -->
+    <!-- STATS -->
     <div class="stats-grid">
       <div class="stat-card">
         <div class="stat-icon">📅</div>
@@ -80,127 +80,121 @@
       </div>
     </div>
 
-    <!-- ── RESTOCK COUNTDOWN ── -->
-    <div class="restock-banner">
-      <div class="restock-left">
-        <div class="restock-icon">🚚</div>
-        <div>
-          <div class="restock-title">NEXT RESTOCK (AHENTE)</div>
-          <div class="restock-date" id="restockDateDisplay">Not set</div>
-        </div>
-      </div>
-      <div class="restock-center">
-        <div class="countdown-box" id="countdownBox">
-          <span class="countdown-num" id="countdownDays">—</span>
-          <span class="countdown-label">DAYS LEFT</span>
-        </div>
-      </div>
-      <div class="restock-right">
-        <input type="date" id="restockDatePicker" class="date-picker" />
-        <button class="btn btn-primary btn-sm" onclick="setRestockDate()">SET DATE</button>
-        <button class="btn btn-ghost btn-sm" onclick="clearRestockDate()">CLEAR</button>
-      </div>
-    </div>
-
-    <!-- ── LOW STOCK ALERT ── -->
+    <!-- LOW STOCK ALERT -->
     <div class="alert-bar hidden" id="lowStockAlert">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-      <span id="lowStockMsg">Low stock warning</span>
+      <span id="lowStockMsg"></span>
     </div>
 
     <!-- ══════════════════════════════════════
-         💰 CASH FUND MANAGER
+         💰 PERIOD FUND TRACKER
     ══════════════════════════════════════ -->
     <section class="card fund-card">
       <div class="card-header">
-        <h2 class="section-title">💰 CASH FUND — PAMBILI NG STOCKS</h2>
-        <div style="display:flex;gap:8px;align-items:center">
-          <button class="btn btn-ghost btn-sm" onclick="toggleFundHistory()">HISTORY</button>
-          <button class="btn btn-danger btn-sm" onclick="confirmResetFund()">RESET FUND</button>
+        <div>
+          <h2 class="section-title">💰 PERIOD FUND TRACKER</h2>
+          <div class="fund-subtitle">Benta mo sa period → Pambili ng stock bago bumalik si ahente</div>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="confirmResetFund()">RESET FUND</button>
+      </div>
+
+      <!-- Period Setup -->
+      <div class="period-setup">
+        <div class="period-setup-label">📅 SET PERIOD</div>
+        <div class="period-setup-inputs">
+          <div class="period-field">
+            <label>SIMULA (Start)</label>
+            <input type="date" id="periodStart" class="date-picker" />
+          </div>
+          <div class="period-arrow-big">→</div>
+          <div class="period-field">
+            <label>BABALIK SI AHENTE (End)</label>
+            <input type="date" id="periodEnd" class="date-picker" />
+          </div>
+          <button class="btn btn-primary" onclick="setPeriod()">SET PERIOD</button>
+          <button class="btn btn-ghost btn-sm" onclick="clearPeriod()">CLEAR</button>
+        </div>
+        <div class="period-status-bar" id="periodStatusBar" style="display:none">
+          <span id="periodLabel"></span>
+          <span class="period-days-left" id="periodDaysLeft"></span>
         </div>
       </div>
 
-      <!-- Main fund overview -->
-      <div class="fund-overview">
+      <!-- Fund Flow: Benta → Stock Purchase → Natitira -->
+      <div class="fund-flow" id="fundFlow">
 
-        <!-- Balance -->
-        <div class="fund-stat">
-          <div class="fund-stat-label">CURRENT FUND</div>
-          <div class="fund-stat-value green" id="fundBalance">₱0</div>
-          <div class="fund-stat-sub">Accumulated from sales</div>
+        <div class="fund-flow-box green">
+          <div class="fund-flow-icon">💵</div>
+          <div class="fund-flow-label">BENTA SA PERIOD</div>
+          <div class="fund-flow-value" id="fundPeriodSales">₱0</div>
+          <div class="fund-flow-sub" id="fundPeriodSalesSub">Wala pang period na naka-set</div>
         </div>
 
-        <!-- Arrow -->
-        <div class="fund-arrow">→</div>
+        <div class="fund-flow-minus">−</div>
 
-        <!-- Target -->
-        <div class="fund-stat">
-          <div class="fund-stat-label">RESTOCK BUDGET</div>
-          <div class="fund-stat-value yellow" id="fundTarget">₱0</div>
-          <div class="fund-stat-sub">
-            <input type="number" id="fundTargetInput" class="qty-input" style="width:110px" placeholder="Set amount" min="0" />
-            <button class="btn btn-ghost btn-sm" onclick="setFundTarget()" style="margin-left:4px">SET</button>
-          </div>
+        <div class="fund-flow-box red">
+          <div class="fund-flow-icon">🛒</div>
+          <div class="fund-flow-label">GINASTOS SA STOCK</div>
+          <div class="fund-flow-value" id="fundSpent">₱0</div>
+          <div class="fund-flow-sub" id="fundSpentSub">Walang binili pa</div>
         </div>
 
-        <!-- Arrow -->
-        <div class="fund-arrow">→</div>
+        <div class="fund-flow-equals">=</div>
 
-        <!-- Projection -->
-        <div class="fund-stat">
-          <div class="fund-stat-label">PROJECTED BY RESTOCK</div>
-          <div class="fund-stat-value" id="fundProjected">₱0</div>
-          <div class="fund-stat-sub" id="fundProjectedSub">Set restock date first</div>
-        </div>
-
-        <!-- Status -->
-        <div class="fund-status-box" id="fundStatusBox">
-          <div class="fund-status-icon" id="fundStatusIcon">⏳</div>
-          <div class="fund-status-text" id="fundStatusText">Set budget &amp; date</div>
+        <div class="fund-flow-box" id="fundBalanceBox">
+          <div class="fund-flow-icon" id="fundBalanceIcon">💰</div>
+          <div class="fund-flow-label">NATITIRA SA PONDO</div>
+          <div class="fund-flow-value" id="fundBalance">₱0</div>
+          <div class="fund-flow-sub" id="fundBalanceSub">Set period para makita</div>
         </div>
 
       </div>
 
       <!-- Progress bar -->
-      <div class="fund-progress-wrap">
+      <div class="fund-progress-wrap" id="fundProgressWrap" style="display:none">
         <div class="fund-progress-bar">
           <div class="fund-progress-fill" id="fundProgressFill" style="width:0%"></div>
           <span class="fund-progress-label" id="fundProgressPct">0%</span>
         </div>
         <div class="fund-progress-info">
-          <span id="fundNeedMore" style="color:var(--text-dim)">Set a restock budget to track progress</span>
-          <span id="fundDaysInfo" style="color:var(--text-dim)"></span>
+          <span id="fundProgressLeft"></span>
+          <span id="fundProjectedInfo" style="color:var(--info)"></span>
         </div>
       </div>
 
-      <!-- Actions -->
-      <div class="fund-actions">
-        <div class="fund-action-group">
-          <span class="fund-action-label">➕ ADD TO FUND</span>
-          <input type="number" id="depositAmount" class="qty-input" style="width:120px" placeholder="Amount" min="0" />
-          <input type="text"   id="depositNote"   class="qty-input" style="width:160px;text-align:left;padding-left:10px" placeholder="Note (optional)" />
-          <button class="btn btn-primary btn-sm" onclick="manualDeposit()">ADD</button>
-        </div>
-        <div class="fund-action-group">
-          <span class="fund-action-label" style="color:var(--danger)">➖ BUY STOCK (DEDUCT)</span>
-          <input type="number" id="withdrawAmount" class="qty-input" style="width:120px" placeholder="Amount" min="0" />
-          <input type="text"   id="withdrawNote"   class="qty-input" style="width:160px;text-align:left;padding-left:10px" placeholder="What did you buy?" />
-          <button class="btn btn-danger btn-sm" onclick="withdraw()">DEDUCT</button>
+      <!-- Buy Stock Deduction -->
+      <div class="fund-buy-section">
+        <div class="fund-buy-title">🛒 BUMILI AKO NG STOCK — I-DEDUCT SA PONDO</div>
+        <div class="fund-buy-inputs">
+          <div class="fund-buy-field">
+            <label>MAGKANO BINAYAD?</label>
+            <input type="number" id="buyAmount" class="qty-input" style="width:140px" placeholder="₱ Amount" min="0" />
+          </div>
+          <div class="fund-buy-field">
+            <label>ANO ANG NABILI? (optional)</label>
+            <input type="text" id="buyNote" class="qty-input" style="width:220px;text-align:left;padding-left:10px" placeholder="e.g. Marlboro Red 10 packs" />
+          </div>
+          <button class="btn btn-danger" onclick="buyStock()">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            DEDUCT FROM FUND
+          </button>
         </div>
       </div>
 
-      <!-- Fund transaction history (collapsible) -->
-      <div id="fundHistoryWrap" class="fund-history hidden">
+      <!-- Purchase History -->
+      <div class="fund-history">
         <div class="fund-history-header">
-          <span>TRANSACTION HISTORY</span>
+          <span>PURCHASE HISTORY (sa period na ito)</span>
           <span id="fundTxCount" style="color:var(--text-dim);font-size:.78rem"></span>
         </div>
-        <div class="fund-tx-list" id="fundTxList"></div>
+        <div class="fund-tx-list" id="fundTxList">
+          <div class="fund-empty">Wala pang biniling stock sa period na ito.</div>
+        </div>
       </div>
 
     </section>
 
-    <!-- ── INVENTORY ENTRY ── -->
+    <!-- INVENTORY ENTRY -->
     <section class="card">
       <div class="card-header">
         <h2 class="section-title">INVENTORY ENTRY</h2>
@@ -236,7 +230,7 @@
       </div>
     </section>
 
-    <!-- ── HISTORY ── -->
+    <!-- HISTORY -->
     <section class="card">
       <div class="card-header">
         <h2 class="section-title">SUBMISSION HISTORY</h2>
@@ -255,15 +249,12 @@
             <input type="date" id="filterTo" class="date-picker" />
             <button class="btn btn-ghost btn-sm" onclick="filterHistory('custom',null)">GO</button>
           </div>
-          <button class="btn btn-ghost btn-sm" onclick="loadHistory()">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg>
-            REFRESH
-          </button>
+          <button class="btn btn-ghost btn-sm" onclick="loadHistory()">↺ REFRESH</button>
         </div>
       </div>
       <div class="history-summary" id="historySummary" style="display:none">
         <span>Showing <strong id="summaryCount">0</strong> records</span>
-        <span>Total Sales: <strong class="accent" id="summaryTotal">₱0</strong></span>
+        <span>Total: <strong class="accent" id="summaryTotal">₱0</strong></span>
         <span>Avg/day: <strong id="summaryAvg">₱0</strong></span>
       </div>
       <div class="table-wrapper">
@@ -285,7 +276,7 @@
 
   </main>
 
-  <!-- DETAIL MODAL -->
+  <!-- MODAL -->
   <div id="modal" class="modal-overlay hidden">
     <div class="modal">
       <div class="modal-header">
@@ -295,14 +286,7 @@
       <div class="modal-body">
         <div class="table-wrapper">
           <table class="inv-table">
-            <thead>
-              <tr>
-                <th>PRODUCT</th>
-                <th class="align-center">PRICE</th>
-                <th class="align-center">SOLD</th>
-                <th class="align-center">SUBTOTAL</th>
-              </tr>
-            </thead>
+            <thead><tr><th>PRODUCT</th><th class="align-center">PRICE</th><th class="align-center">SOLD</th><th class="align-center">SUBTOTAL</th></tr></thead>
             <tbody id="modalBody"></tbody>
           </table>
         </div>
